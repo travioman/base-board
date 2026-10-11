@@ -17,6 +17,7 @@
   :root { --bg: #1a1816; --surface: #262220; --fg: #ece3cf; --muted: #a2947c; --line: #3b342c;
     --accent: #e07a3a; --accent-fg: #1a1816; --dot: #4a4238; --sel: #6fb0ff; --ink: #6fb0ff; color-scheme: dark; }
 }
+[hidden] { display: none !important; }
 html, body { height: 100%; }
 body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; overflow: hidden; }
 #app { height: 100%; display: flex; flex-direction: column; }
@@ -295,8 +296,8 @@ button .glyph { display: inline-block; width: 14px; height: 14px; vertical-align
   async function addPiece(t) {
     const [cx, cy] = viewCenter();
     const p = { t, x: cx - L / 2, y: cy - (t === "sq" ? L / 2 : H / 2), r: 0, c: color };
-    for (let i = 0; i < 12 && [...pieces.values()].some(o => Math.hypot(o.x - p.x, o.y - p.y) < 4); i++) { p.x += L / 2; p.y += L / 2; }
     Object.assign(p, snap(p, null));
+    for (let i = 0; i < 40 && [...pieces.values()].some(o => Math.hypot(o.x - p.x, o.y - p.y) < 4); i++) p.x += L;
     const id = newId(); await commit(id, p); select(id);
   }
   async function removePiece(id) {
