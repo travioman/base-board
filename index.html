@@ -228,7 +228,9 @@ button .glyph { display: inline-block; width: 14px; height: 14px; vertical-align
             const cands = t === "sq" ? [{ t, x, y, r: 0 }] : [{ t, x, y, r: 0 }, { t, x: x + 3 * L / 2, y: y + H, r: 180 }];
             for (const p of cands) { const f = insideFraction(p, poly); if (f >= 0.5) { band.push(p); score += AREA[t] * (2 * f - 1); } }
           }
-          if (!best || score / h > best.norm) best = { norm: score / h, score, band, h };
+          // squares are the default foundation; triangles only win a band when they fit clearly better
+          const norm = score / h * (t === "sq" ? 1.08 : 1);
+          if (!best || norm > best.norm) best = { norm, score, band, h };
         }
       }
       if (best && best.band.length) { out.push(...best.band); total += best.score; y += best.h; } else y += H;
