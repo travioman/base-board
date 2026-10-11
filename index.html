@@ -1,0 +1,456 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Arrakis Base Board</title>
+<meta name="description" content="Shared planning board for Dune: Awakening bases. Triangle and square foundations that snap, live for everyone with the link.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Source+Sans+3:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #ece3cf; --surface: #f9f4ea; --fg: #2b2420; --muted: #7d705f; --line: #d3c6a9;
+  --accent: #c2571b; --accent-fg: #fff7ee; --dot: #b9ab8c; --sel: #1d5fa3; --ink: #1d5fa3;
+  --display: "Rajdhani", "Segoe UI", sans-serif; --body: "Source Sans 3", "Segoe UI", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1a1816; --surface: #262220; --fg: #ece3cf; --muted: #a2947c; --line: #3b342c;
+    --accent: #e07a3a; --accent-fg: #1a1816; --dot: #4a4238; --sel: #6fb0ff; --ink: #6fb0ff; color-scheme: dark; }
+}
+html, body { height: 100%; }
+body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--body); font-size: 15px; overflow: hidden; }
+#app { height: 100%; display: flex; flex-direction: column; }
+header { display: flex; align-items: center; gap: 12px; padding: 8px 16px; padding-top: calc(8px + env(safe-area-inset-top, 0px)); background: var(--surface); border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+header h1 { font-family: var(--display); font-weight: 700; font-size: 22px; letter-spacing: .04em; margin: 0; text-transform: uppercase; }
+#status { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+#status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+#status.live::before { background: #3f9a4f; }
+#status.err::before { background: var(--accent); }
+#right { margin-left: auto; display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+#stage { flex: 1; min-height: 0; position: relative; }
+svg { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; user-select: none; -webkit-user-select: none; }
+svg.dragging { cursor: grabbing; }
+svg.draw { cursor: crosshair; }
+.piece { stroke-width: 2; cursor: move; }
+.piece.sel { stroke: var(--sel); stroke-width: 4; }
+.ghost { stroke-width: 2; stroke-dasharray: 4 3; opacity: .75; pointer-events: none; }
+#ink { fill: none; stroke: var(--ink); stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; pointer-events: none; }
+#outline { fill: var(--ink); fill-opacity: .08; stroke: var(--ink); stroke-width: 2; stroke-dasharray: 6 4; pointer-events: none; }
+#hint { position: absolute; left: 16px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; max-width: calc(100% - 32px); }
+#empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--muted); pointer-events: none; padding: 0 16px; }
+#empty h2 { font-family: var(--display); font-size: 26px; margin: 0 0 6px; color: var(--fg); letter-spacing: .04em; text-transform: uppercase; }
+#empty p { margin: 0; max-width: 36ch; }
+#preview { position: absolute; top: 12px; left: 50%; transform: translateX(-50%); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 32px); box-shadow: 0 4px 16px rgba(0,0,0,.12); }
+#preview span { font-size: 14px; }
+footer { background: var(--surface); border-top: 1px solid var(--line); padding: 8px 16px calc(8px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 8px; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+button, select { font-family: var(--display); font-weight: 600; font-size: 15px; letter-spacing: .03em; text-transform: uppercase; min-height: 40px; padding: 0 12px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); cursor: pointer; }
+button:hover { border-color: var(--accent); }
+button:focus-visible, select:focus-visible { outline: 2px solid var(--sel); outline-offset: 1px; }
+button:disabled { opacity: .45; cursor: default; }
+button.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+button.danger { color: var(--accent); }
+button.on { background: var(--sel); color: #fff; border-color: var(--sel); }
+button .glyph { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; }
+.swatches { display: flex; gap: 6px; margin-left: auto; }
+.sw { width: 32px; height: 32px; min-height: 32px; padding: 0; border-radius: 50%; border: 2px solid transparent; }
+.sw.on { border-color: var(--fg); box-shadow: 0 0 0 2px var(--surface) inset; }
+.spacer { flex: 1; }
+#notes { width: 100%; box-sizing: border-box; min-height: 38px; max-height: 110px; resize: vertical; font: inherit; font-size: 14px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--fg); }
+#notes:focus-visible { outline: 2px solid var(--sel); }
+@media (max-width: 560px) { header h1 { font-size: 18px; } button, select { padding: 0 9px; font-size: 14px; } .swatches { margin-left: 0; } #hint { display: none; } }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>Arrakis Base Board</h1>
+    <span id="status">Connecting</span>
+    <div id="right">
+      <span id="people"></span>
+      <span id="count">0 pieces</span>
+      <button id="share" type="button" title="Copy the link to this board">Copy link</button>
+    </div>
+  </header>
+  <div id="stage">
+    <svg id="board" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+          <circle cx="0" cy="0" r="1.6" fill="var(--dot)"></circle>
+        </pattern>
+      </defs>
+      <g id="world">
+        <rect x="-20000" y="-20000" width="40000" height="40000" fill="url(#grid)"></rect>
+        <g id="pieces"></g>
+        <g id="ghosts"></g>
+        <polygon id="outline" points="" hidden></polygon>
+        <polyline id="ink" points=""></polyline>
+      </g>
+    </svg>
+    <div id="empty" hidden>
+      <div>
+        <h2>Empty plot</h2>
+        <p>Add a triangle or a square, or hit Draw and sketch the outline you want. Pieces snap edge to edge like foundations in game.</p>
+      </div>
+    </div>
+    <div id="preview" hidden>
+      <span id="previewText">0 pieces</span>
+      <select id="mode" aria-label="Piece mix">
+        <option value="mixed">Mixed</option>
+        <option value="sq">Squares only</option>
+        <option value="tri">Triangles only</option>
+      </select>
+      <button id="build" class="primary" type="button">Build it</button>
+      <button id="cancelBuild" type="button">Cancel</button>
+    </div>
+    <div id="hint">Drag a piece to move · tap to select · R rotates 30° · drag sand to pan · scroll or pinch to zoom · Draw: sketch an outline, the board fills it</div>
+  </div>
+  <footer>
+    <div class="row">
+      <button id="addTri" class="primary" type="button"><svg class="glyph" viewBox="0 0 14 14"><polygon points="7,1 13,13 1,13" fill="currentColor"></polygon></svg>Triangle</button>
+      <button id="addSq" class="primary" type="button"><svg class="glyph" viewBox="0 0 14 14"><rect x="1" y="1" width="12" height="12" fill="currentColor"></rect></svg>Square</button>
+      <button id="draw" type="button">Draw</button>
+      <button id="rot" type="button" disabled>Rotate</button>
+      <button id="dup" type="button" disabled>Duplicate</button>
+      <button id="del" type="button" class="danger" disabled>Delete</button>
+      <div class="swatches" id="swatches"></div>
+    </div>
+    <div class="row">
+      <button id="zin" type="button">+</button>
+      <button id="zout" type="button">−</button>
+      <button id="fit" type="button">Fit</button>
+      <span class="spacer"></span>
+      <button id="clear" type="button" class="danger">Clear board</button>
+    </div>
+    <textarea id="notes" placeholder="Shared notes: who builds what, materials, which colour means which level"></textarea>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.58.0/dist/umd/supabase.js"></script>
+<script>
+(function () {
+  // ---- backend (publishable key: public by design, rows are open to anyone with the link) ----
+  const SUPABASE_URL = "https://fqzwlfmlbfhnmrrzutjf.supabase.co";
+  const SUPABASE_KEY = "sb_publishable_gsOfOYWSUgZgkFO0la3xtg_dvC2L10Y";
+
+  const L = 60, H = L * Math.sqrt(3) / 2, AREA = { sq: L * L, tri: L * L * Math.sqrt(3) / 4 };
+  const SHAPES = { sq: [[0, 0], [L, 0], [L, L], [0, L]], tri: [[0, 0], [L, 0], [L / 2, H]] };
+  const PALETTE = [
+    ["Sand", "#d9b36a", "#9a7a3a"], ["Spice", "#d9662c", "#8f3f14"], ["Basalt", "#737a86", "#3f444d"],
+    ["Water", "#3f93c9", "#235a80"], ["Fremen", "#6f9d4d", "#40622a"], ["Guild", "#9170c6", "#56407f"],
+  ];
+  const $ = (id) => document.getElementById(id);
+  const svg = $("board"), world = $("world"), layer = $("pieces"), ghosts = $("ghosts"), ink = $("ink"), outline = $("outline");
+  const statusEl = $("status"), countEl = $("count"), emptyEl = $("empty"), notesEl = $("notes"), peopleEl = $("people");
+
+  // ---- room ----
+  const WORDS = ["spice", "sietch", "dune", "worm", "fremen", "crysknife", "stillsuit", "arrakeen", "harkonnen", "atreides", "ornithopter", "sandstorm", "shai-hulud", "carthag", "hagga"];
+  let room = (location.hash || "").slice(1).toLowerCase();
+  if (!/^[a-z0-9-]{3,40}$/.test(room)) {
+    room = WORDS[Math.random() * WORDS.length | 0] + "-" + WORDS[Math.random() * WORDS.length | 0] + "-" + (Math.random() * 900 + 100 | 0);
+    history.replaceState(null, "", "#" + room);
+  }
+  window.addEventListener("hashchange", () => location.reload());
+
+  // ---- state ----
+  const pieces = new Map(), els = new Map();
+  let selected = null, color = 0, view = { px: 0, py: 0, z: 1 }, dragging = null, sb = null, drawMode = false;
+  let hadView = false;
+  try { const v = JSON.parse(localStorage.getItem("view:" + room) || "null"); if (v && isFinite(v.z)) { view = v; hadView = true; } color = +localStorage.getItem("color") || 0; } catch (e) {}
+
+  // ---- geometry ----
+  function verts(p) { const a = p.r * Math.PI / 180, c = Math.cos(a), s = Math.sin(a); return SHAPES[p.t].map(([x, y]) => [p.x + x * c - y * s, p.y + x * s + y * c]); }
+  function centroid(vs) { let x = 0, y = 0; for (const v of vs) { x += v[0]; y += v[1]; } return [x / vs.length, y / vs.length]; }
+  function edges(vs) { return vs.map((v, i) => [v, vs[(i + 1) % vs.length]]); }
+  function snap(p, skipId) {
+    const vs = verts(p), thr = L * 0.5; let best = null;
+    for (const [a, b] of edges(vs)) {
+      const dx = b[0] - a[0], dy = b[1] - a[1], mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2;
+      for (const [id, o] of pieces) {
+        if (id === skipId) continue;
+        for (const [c, d] of edges(verts(o))) {
+          const ex = d[0] - c[0], ey = d[1] - c[1];
+          if (dx * ex + dy * ey > 0) continue;
+          if (Math.abs(dx * ey - dy * ex) / (L * L) > 0.1) continue;
+          const tx = (c[0] + d[0]) / 2 - mx, ty = (c[1] + d[1]) / 2 - my, dist = Math.hypot(tx, ty);
+          if (dist < thr && (!best || dist < best.d)) best = { d: dist, tx, ty };
+        }
+      }
+    }
+    if (best) return { x: p.x + best.tx, y: p.y + best.ty };
+    const g = L / 2; return { x: Math.round(p.x / g) * g, y: Math.round(p.y / g) * g };
+  }
+  function rotated(p, deg) {
+    const c0 = centroid(verts(p)), q = Object.assign({}, p, { r: ((p.r + deg) % 360 + 360) % 360 }), c1 = centroid(verts(q));
+    q.x += c0[0] - c1[0]; q.y += c0[1] - c1[1]; return q;
+  }
+  function inPoly(pt, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [xi, yi] = poly[i], [xj, yj] = poly[j];
+      if ((yi > pt[1]) !== (yj > pt[1]) && pt[0] < (xj - xi) * (pt[1] - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+
+  // ---- draw-to-build: greedy bands of squares or triangles, horizontal or vertical, best coverage wins ----
+  function simplify(pts, eps) {
+    if (pts.length < 3) return pts;
+    let maxD = 0, idx = 0; const [a, b] = [pts[0], pts[pts.length - 1]];
+    for (let i = 1; i < pts.length - 1; i++) {
+      const d = Math.abs((b[0] - a[0]) * (a[1] - pts[i][1]) - (a[0] - pts[i][0]) * (b[1] - a[1])) / (Math.hypot(b[0] - a[0], b[1] - a[1]) || 1);
+      if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD <= eps) return [a, b];
+    return simplify(pts.slice(0, idx + 1), eps).slice(0, -1).concat(simplify(pts.slice(idx), eps));
+  }
+  function polyArea(poly) { let s = 0; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) s += (poly[j][0] + poly[i][0]) * (poly[j][1] - poly[i][1]); return Math.abs(s / 2); }
+  function insideFraction(p, poly) {
+    const vs = verts(p), c = centroid(vs); let n = 0, k = 0;
+    const test = (pt) => { n++; if (inPoly(pt, poly)) k++; };
+    test(c);
+    for (const v of vs) test([c[0] + (v[0] - c[0]) * 0.75, c[1] + (v[1] - c[1]) * 0.75]);
+    for (const [a, b] of edges(vs)) { const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2]; test([c[0] + (m[0] - c[0]) * 0.85, c[1] + (m[1] - c[1]) * 0.85]); }
+    return k / n;
+  }
+  function tileBands(poly, types) {
+    let xmin = 1e9, xmax = -1e9, ymin = 1e9, ymax = -1e9;
+    for (const [x, y] of poly) { xmin = Math.min(xmin, x); xmax = Math.max(xmax, x); ymin = Math.min(ymin, y); ymax = Math.max(ymax, y); }
+    const out = []; let total = 0, y = Math.floor(ymin / (L / 2)) * (L / 2); const x0 = Math.floor(xmin / L) * L - L;
+    while (y < ymax) {
+      let best = null;
+      for (const t of types) {
+        const h = t === "sq" ? L : H;
+        for (const off of [0, L / 4, L / 2, 3 * L / 4]) {
+          const band = []; let score = 0;
+          for (let x = x0 + off; x < xmax + L; x += L) {
+            const cands = t === "sq" ? [{ t, x, y, r: 0 }] : [{ t, x, y, r: 0 }, { t, x: x + 3 * L / 2, y: y + H, r: 180 }];
+            for (const p of cands) { const f = insideFraction(p, poly); if (f >= 0.5) { band.push(p); score += AREA[t] * (2 * f - 1); } }
+          }
+          if (!best || score / h > best.norm) best = { norm: score / h, score, band, h };
+        }
+      }
+      if (best && best.band.length) { out.push(...best.band); total += best.score; y += best.h; } else y += H;
+    }
+    return { pieces: out, score: total };
+  }
+  function autoTile(poly, mode) {
+    const types = mode === "sq" ? ["sq"] : mode === "tri" ? ["tri"] : ["sq", "tri"];
+    const a = tileBands(poly, types);
+    const b = tileBands(poly.map(([x, y]) => [y, -x]), types);
+    const bBack = b.pieces.map(p => ({ t: p.t, x: -p.y, y: p.x, r: (p.r + 90) % 360 }));
+    const chosen = b.score > a.score * 1.05 ? bBack : a.pieces;
+    const existing = [...pieces.values()].map(verts);
+    return chosen.filter(p => { const c = centroid(verts(p)); return !existing.some(vs => inPoly(c, vs)); });
+  }
+
+  // ---- rendering ----
+  function applyView() { world.setAttribute("transform", `translate(${view.px} ${view.py}) scale(${view.z})`); try { localStorage.setItem("view:" + room, JSON.stringify(view)); } catch (e) {} }
+  function draw(id) {
+    const p = pieces.get(id); let el = els.get(id);
+    if (!el) { el = document.createElementNS("http://www.w3.org/2000/svg", "polygon"); el.classList.add("piece"); el.dataset.id = id; layer.appendChild(el); els.set(id, el); }
+    const pal = PALETTE[p.c] || PALETTE[0];
+    el.setAttribute("points", verts(p).map(v => v.join(",")).join(" ")); el.setAttribute("fill", pal[1]); el.setAttribute("stroke", pal[2]);
+    el.classList.toggle("sel", id === selected);
+  }
+  function erase(id) { const el = els.get(id); if (el) el.remove(); els.delete(id); pieces.delete(id); if (selected === id) select(null); refreshCount(); }
+  function refreshCount() { countEl.textContent = pieces.size + (pieces.size === 1 ? " piece" : " pieces"); emptyEl.hidden = pieces.size > 0 || drawMode; }
+  function select(id) {
+    const prev = selected; selected = id;
+    if (prev && els.has(prev)) els.get(prev).classList.remove("sel");
+    if (id && els.has(id)) { els.get(id).classList.add("sel"); layer.appendChild(els.get(id)); }
+    $("rot").disabled = $("dup").disabled = $("del").disabled = !id;
+  }
+  function setStatus(text, cls) { statusEl.textContent = text; statusEl.className = cls || ""; }
+  function newId() { return Math.random().toString(36).slice(2, 10) + Date.now().toString(36).slice(-4); }
+
+  const swEl = $("swatches");
+  PALETTE.forEach(([name, fill], i) => {
+    const b = document.createElement("button"); b.type = "button"; b.className = "sw"; b.title = name; b.setAttribute("aria-label", name); b.style.background = fill;
+    b.addEventListener("click", () => { color = i; try { localStorage.setItem("color", i); } catch (e) {} paintSwatches(); if (selected) commit(selected, Object.assign({}, pieces.get(selected), { c: i })); });
+    swEl.appendChild(b);
+  });
+  function paintSwatches() { [...swEl.children].forEach((b, i) => b.classList.toggle("on", i === color)); }
+  paintSwatches();
+
+  // ---- persistence ----
+  function row(id, p) { return { id, room, t: p.t, x: Math.round(p.x * 100) / 100, y: Math.round(p.y * 100) / 100, r: p.r, c: p.c }; }
+  async function commit(id, p) {
+    pieces.set(id, p); draw(id); refreshCount();
+    if (!sb) return;
+    const { error } = await sb.from("board_pieces").upsert(row(id, p));
+    if (error) onWriteError(error);
+  }
+  async function commitMany(list) {
+    for (const [id, p] of list) { pieces.set(id, p); draw(id); }
+    refreshCount();
+    if (!sb) return;
+    for (let i = 0; i < list.length; i += 200) {
+      const { error } = await sb.from("board_pieces").upsert(list.slice(i, i + 200).map(([id, p]) => row(id, p)));
+      if (error) { onWriteError(error); break; }
+    }
+  }
+  function onWriteError(e) { setStatus(/full/i.test(e.message || "") ? "Board is full (3000 pieces)" : "Save failed, reload and try again", "err"); }
+  function viewCenter() { const r = svg.getBoundingClientRect(); return [(r.width / 2 - view.px) / view.z, (r.height / 2 - view.py) / view.z]; }
+  async function addPiece(t) {
+    const [cx, cy] = viewCenter();
+    const p = { t, x: cx - L / 2, y: cy - (t === "sq" ? L / 2 : H / 2), r: 0, c: color };
+    for (let i = 0; i < 12 && [...pieces.values()].some(o => Math.hypot(o.x - p.x, o.y - p.y) < 4); i++) { p.x += L / 2; p.y += L / 2; }
+    Object.assign(p, snap(p, null));
+    const id = newId(); await commit(id, p); select(id);
+  }
+  async function removePiece(id) {
+    if (!pieces.has(id)) return; erase(id);
+    if (sb) { const { error } = await sb.from("board_pieces").delete().eq("id", id).eq("room", room); if (error) onWriteError(error); }
+  }
+
+  // ---- pointer handling ----
+  const ptrs = new Map(); let pan = null, pinch = null, stroke = null;
+  function toWorld(ev) { const r = svg.getBoundingClientRect(); return [(ev.clientX - r.left - view.px) / view.z, (ev.clientY - r.top - view.py) / view.z]; }
+  svg.addEventListener("pointerdown", (ev) => {
+    svg.setPointerCapture(ev.pointerId); ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (ptrs.size === 2) { dragging = null; pan = null; stroke = null; ink.setAttribute("points", ""); const a = [...ptrs.values()]; pinch = { d: Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]), z: view.z, px: view.px, py: view.py, mx: (a[0][0] + a[1][0]) / 2, my: (a[0][1] + a[1][1]) / 2 }; return; }
+    if (drawMode) { cancelPreview(); stroke = [toWorld(ev)]; ink.setAttribute("points", stroke[0].join(",")); return; }
+    const id = ev.target.dataset && ev.target.dataset.id;
+    if (id && pieces.has(id)) { select(id); const [wx, wy] = toWorld(ev); const p = pieces.get(id); dragging = { id, ox: p.x - wx, oy: p.y - wy, moved: false }; svg.classList.add("dragging"); }
+    else { select(null); pan = { sx: ev.clientX, sy: ev.clientY, px: view.px, py: view.py }; }
+  });
+  svg.addEventListener("pointermove", (ev) => {
+    if (!ptrs.has(ev.pointerId)) return; ptrs.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (pinch && ptrs.size === 2) {
+      const a = [...ptrs.values()], d = Math.hypot(a[0][0] - a[1][0], a[0][1] - a[1][1]);
+      const z = Math.min(4, Math.max(0.2, pinch.z * d / pinch.d)), r = svg.getBoundingClientRect();
+      const mx = (a[0][0] + a[1][0]) / 2 - r.left, my = (a[0][1] + a[1][1]) / 2 - r.top;
+      const wx = (pinch.mx - r.left - pinch.px) / pinch.z, wy = (pinch.my - r.top - pinch.py) / pinch.z;
+      view = { z, px: mx - wx * z, py: my - wy * z }; applyView(); return;
+    }
+    if (stroke) { const pt = toWorld(ev); const last = stroke[stroke.length - 1]; if (Math.hypot(pt[0] - last[0], pt[1] - last[1]) > 3 / view.z) { stroke.push(pt); ink.setAttribute("points", stroke.map(p => p.join(",")).join(" ")); } return; }
+    if (dragging) {
+      const [wx, wy] = toWorld(ev), p = pieces.get(dragging.id); if (!p) { dragging = null; return; }
+      const nx = wx + dragging.ox, ny = wy + dragging.oy;
+      if (Math.hypot(nx - p.x, ny - p.y) > 2 / view.z) dragging.moved = true;
+      pieces.set(dragging.id, Object.assign({}, p, { x: nx, y: ny })); draw(dragging.id);
+    } else if (pan) { view.px = pan.px + ev.clientX - pan.sx; view.py = pan.py + ev.clientY - pan.sy; applyView(); }
+  });
+  function endPointer(ev) {
+    ptrs.delete(ev.pointerId);
+    if (pinch) { if (ptrs.size < 2) pinch = null; return; }
+    pan = null;
+    if (stroke) { const s = stroke; stroke = null; ink.setAttribute("points", ""); finishStroke(s); return; }
+    if (dragging) {
+      const d = dragging; dragging = null; svg.classList.remove("dragging");
+      const p = pieces.get(d.id); if (p && d.moved) commit(d.id, Object.assign({}, p, snap(p, d.id)));
+    }
+  }
+  svg.addEventListener("pointerup", endPointer); svg.addEventListener("pointercancel", endPointer);
+  svg.addEventListener("wheel", (ev) => { ev.preventDefault(); const r = svg.getBoundingClientRect(); zoomAt(ev.clientX - r.left, ev.clientY - r.top, Math.exp(-ev.deltaY * 0.0015)); }, { passive: false });
+  function zoomAt(sx, sy, f) { const z = Math.min(4, Math.max(0.2, view.z * f)), wx = (sx - view.px) / view.z, wy = (sy - view.py) / view.z; view = { z, px: sx - wx * z, py: sy - wy * z }; applyView(); }
+  function fit() {
+    const r = svg.getBoundingClientRect();
+    if (!pieces.size) { view = { px: r.width / 2, py: r.height / 2, z: 1 }; applyView(); return; }
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const p of pieces.values()) for (const [x, y] of verts(p)) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); }
+    const z = Math.min(4, Math.max(0.2, Math.min((r.width - 48) / (x1 - x0 || 1), (r.height - 48) / (y1 - y0 || 1))));
+    view = { z, px: r.width / 2 - (x0 + x1) / 2 * z, py: r.height / 2 - (y0 + y1) / 2 * z }; applyView();
+  }
+
+  // ---- draw mode + preview ----
+  let previewPoly = null, previewPieces = [];
+  function setDraw(on) { drawMode = on; $("draw").classList.toggle("on", on); svg.classList.toggle("draw", on); if (!on) cancelPreview(); select(null); refreshCount(); }
+  function finishStroke(s) {
+    const poly = simplify(s, L / 5);
+    if (poly.length < 3 || polyArea(poly) < AREA.tri) { setStatus("Draw a bigger closed shape", "live"); return; }
+    previewPoly = poly; outline.setAttribute("points", poly.map(p => p.join(",")).join(" ")); outline.hidden = false;
+    renderPreview();
+  }
+  function renderPreview() {
+    if (!previewPoly) return;
+    previewPieces = autoTile(previewPoly, $("mode").value);
+    ghosts.replaceChildren();
+    const pal = PALETTE[color];
+    for (const p of previewPieces) { const el = document.createElementNS("http://www.w3.org/2000/svg", "polygon"); el.classList.add("ghost"); el.setAttribute("points", verts(p).map(v => v.join(",")).join(" ")); el.setAttribute("fill", pal[1]); el.setAttribute("stroke", pal[2]); ghosts.appendChild(el); }
+    const sq = previewPieces.filter(p => p.t === "sq").length, tri = previewPieces.length - sq;
+    $("previewText").textContent = `${sq} square${sq === 1 ? "" : "s"} + ${tri} triangle${tri === 1 ? "" : "s"}`;
+    $("preview").hidden = false; $("build").disabled = !previewPieces.length;
+  }
+  function cancelPreview() { previewPoly = null; previewPieces = []; ghosts.replaceChildren(); outline.hidden = true; $("preview").hidden = true; }
+  $("mode").addEventListener("change", renderPreview);
+  $("build").addEventListener("click", async () => {
+    const list = previewPieces.map(p => [newId(), Object.assign({}, p, { c: color })]);
+    cancelPreview(); setDraw(false); await commitMany(list);
+  });
+  $("cancelBuild").addEventListener("click", cancelPreview);
+  $("draw").addEventListener("click", () => setDraw(!drawMode));
+
+  // ---- buttons & keys ----
+  $("addTri").addEventListener("click", () => addPiece("tri"));
+  $("addSq").addEventListener("click", () => addPiece("sq"));
+  $("rot").addEventListener("click", rotateSel);
+  $("dup").addEventListener("click", dupSel);
+  $("del").addEventListener("click", () => selected && removePiece(selected));
+  $("zin").addEventListener("click", () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 1.25); });
+  $("zout").addEventListener("click", () => { const r = svg.getBoundingClientRect(); zoomAt(r.width / 2, r.height / 2, 0.8); });
+  $("fit").addEventListener("click", fit);
+  $("share").addEventListener("click", async () => {
+    const url = location.href; const b = $("share");
+    try { await navigator.clipboard.writeText(url); b.textContent = "Copied"; } catch (e) { prompt("Copy this link", url); }
+    setTimeout(() => { b.textContent = "Copy link"; }, 1500);
+  });
+  let clearArmed = 0;
+  $("clear").addEventListener("click", async () => {
+    if (!pieces.size) return;
+    if (Date.now() - clearArmed > 4000) { clearArmed = Date.now(); $("clear").textContent = "Tap again to clear"; setTimeout(() => { $("clear").textContent = "Clear board"; }, 4000); return; }
+    clearArmed = 0; $("clear").textContent = "Clear board";
+    for (const id of [...pieces.keys()]) erase(id);
+    if (sb) { const { error } = await sb.from("board_pieces").delete().eq("room", room); if (error) onWriteError(error); }
+  });
+  function rotateSel() { if (!selected) return; const q = rotated(pieces.get(selected), 30); Object.assign(q, snap(q, selected)); commit(selected, q); }
+  function dupSel() { if (!selected) return; const p = pieces.get(selected), q = Object.assign({}, p, { x: p.x + L }); Object.assign(q, snap(q, null)); const id = newId(); commit(id, q); select(id); }
+  document.addEventListener("keydown", (ev) => {
+    if (ev.target === notesEl || ev.target.tagName === "SELECT") return;
+    if (ev.key === "r" || ev.key === "R") rotateSel();
+    else if (ev.key === "Delete" || ev.key === "Backspace") { if (selected) removePiece(selected); }
+    else if (ev.key === "d" || ev.key === "D") dupSel();
+    else if (ev.key === "t" || ev.key === "T") addPiece("tri");
+    else if (ev.key === "s" || ev.key === "S") addPiece("sq");
+    else if (ev.key === "p" || ev.key === "P") setDraw(!drawMode);
+    else if (ev.key === "Escape") { if (previewPoly) cancelPreview(); else if (drawMode) setDraw(false); else select(null); }
+  });
+
+  // ---- shared notes ----
+  let notesTimer = null;
+  notesEl.addEventListener("input", () => {
+    if (!sb) return; const text = notesEl.value.slice(0, 4000); clearTimeout(notesTimer);
+    notesTimer = setTimeout(async () => { const { error } = await sb.from("board_notes").upsert({ room, text }); if (error) onWriteError(error); }, 700);
+  });
+
+  // ---- boot ----
+  applyView(); refreshCount();
+  (async () => {
+    if (!window.supabase) { setStatus("Offline: could not load the sync library", "err"); return; }
+    sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const { data, error } = await sb.from("board_pieces").select("id,t,x,y,r,c").eq("room", room);
+    if (error) { setStatus("Could not load the board", "err"); return; }
+    for (const d of data) { if (SHAPES[d.t]) { pieces.set(d.id, { t: d.t, x: d.x, y: d.y, r: d.r, c: d.c }); draw(d.id); } }
+    refreshCount(); if (pieces.size && !hadView) fit();
+    const n = await sb.from("board_notes").select("text").eq("room", room).maybeSingle();
+    if (n.data && document.activeElement !== notesEl) notesEl.value = n.data.text;
+    const ch = sb.channel("room:" + room, { config: { presence: { key: newId() } } });
+    ch.on("postgres_changes", { event: "*", schema: "public", table: "board_pieces", filter: "room=eq." + room }, (msg) => {
+      if (msg.eventType === "DELETE") { const id = msg.old && msg.old.id; if (id && !(dragging && dragging.id === id)) erase(id); return; }
+      const d = msg.new; if (!d || !SHAPES[d.t] || (dragging && dragging.id === d.id)) return;
+      pieces.set(d.id, { t: d.t, x: d.x, y: d.y, r: d.r, c: d.c }); draw(d.id); refreshCount();
+    });
+    ch.on("postgres_changes", { event: "*", schema: "public", table: "board_notes", filter: "room=eq." + room }, (msg) => {
+      if (msg.new && document.activeElement !== notesEl) notesEl.value = msg.new.text;
+    });
+    ch.on("presence", { event: "sync" }, () => { const n = Object.keys(ch.presenceState()).length; peopleEl.textContent = n > 1 ? n + " here" : ""; });
+    ch.subscribe((state) => {
+      if (state === "SUBSCRIBED") { setStatus("Live · " + room, "live"); ch.track({ at: Date.now() }); }
+      else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT") setStatus("Live updates lost, reload", "err");
+    });
+  })();
+})();
+</script>
+</body>
+</html>
